@@ -188,3 +188,110 @@ TravelPackage pkg = new TravelPackage.TravelPackageBuilder("Goa", 3, 3500)
 - **Duplicate selection guard** — `HashSet` prevents user from setting the same option twice
 - **Null-safe pricing** — `CalculatePrice` handles null optional fields gracefully
 - **Separation of concerns** — `TravelPackage` (data), `CalculatePrice` (logic), `Main` (UI) are separate classes
+
+---
+
+# 🚀 4) Abstract Factory Pattern — Cloud Deployment SDK: Cloud Provider (GCP / AWS / Azure)
+
+## 🧠 Problem
+A Cloud Deployment SDK needs to provision infrastructure across **multiple cloud providers — AWS, Azure, GCP** — each requiring provider-specific implementations for **6 services**: Authentication, Compute, Storage, Networking, Deployment, and Monitoring.
+
+If the client creates provider-specific objects directly:
+- ❌ Tightly coupled to concrete classes (`new AWSCompute()`, `new AzureStorage()`, etc.)
+- ❌ Risk of mixing services across providers (e.g., AWS Auth + Azure Storage) — **breaks compatibility**
+- ❌ Adding a new provider requires changes across the entire client codebase
+- ❌ Violates Open/Closed Principle — client must know every provider's class
+
+---
+
+## ✅ Solution
+Implemented **Abstract Factory Pattern** to ensure:
+
+> 🔥 **Client code is 100% provider-agnostic — a single factory interface creates an entire family of compatible cloud services, and switching providers is a one-line change**
+
+---
+
+## ⚙️ How It Works
+
+```text
+User Input ("AWS") → CloudServiceFactoryProvider → AWSFactory → creates AWSAuth, AWSCompute, AWSStorage, ...
+User Input ("GCP") → CloudServiceFactoryProvider → GCPFactory → creates GCPAuth, GCPCompute, GCPStorage, ...
+User Input ("Azure") → CloudServiceFactoryProvider → AzureFactory → creates AzureAuth, AzureCompute, AzureStorage, ...
+```
+
+---
+
+## 📌 Supported Providers & Services
+
+| Service | AWS | Azure | GCP |
+|---------|-----|-------|-----|
+| Authentication | IAM Roles / Access Keys | Azure Active Directory | Google Cloud IAM |
+| Compute | EC2 / Lambda | Virtual Machines / Azure Functions | Compute Engine / Cloud Functions |
+| Storage | Amazon S3 | Azure Blob Storage | Google Cloud Storage |
+| Networking | VPC / ELB | Azure VNet | Google VPC |
+| Deployment | CI-CD / ECS / EKS | Azure DevOps | Cloud Build / GKE |
+| Monitoring | CloudWatch | Azure Monitor | Cloud Monitoring |
+
+---
+
+## ⚙️ Key Idea
+
+**Abstract Factory Interface:**
+```java
+public interface CloudServiceFactory {
+    Authentication createAuthentication();
+    Compute createCompute();
+    Storage createStorage();
+    Networking createNetworking();
+    Deployment createDeployment();
+    Monitoring createMonitoring();
+}
+```
+
+**Concrete Factory (e.g., AWS):**
+```java
+public class AWSFactory implements CloudServiceFactory {
+    public Authentication createAuthentication() { return new AWSAuth(); }
+    public Compute createCompute()               { return new AWSCompute(); }
+    public Storage createStorage()               { return new AWSStorage(); }
+    public Networking createNetworking()         { return new AWSNetworking(); }
+    public Deployment createDeployment()         { return new AWSDeployment(); }
+    public Monitoring createMonitoring()         { return new AWSMonitoring(); }
+}
+```
+
+**Factory Provider (selects the right factory):**
+```java
+public class CloudServiceFactoryProvider {
+    public static CloudServiceFactory getFactory(String provider) {
+        switch (provider.toUpperCase()) {
+            case "AZURE": return new AzureFactory();
+            case "GCP":   return new GCPFactory();
+            case "AWS":   return new AWSFactory();
+            default:      return new AWSFactory();
+        }
+    }
+}
+```
+
+**Usage (Client is fully provider-agnostic):**
+```java
+CloudServiceFactory factory = CloudServiceFactoryProvider.getFactory("AWS");
+
+factory.createAuthentication().authenticate();
+factory.createCompute().startCompute();
+factory.createStorage().chooseStorage();
+factory.createNetworking().chooseNetwork();
+factory.createDeployment().doDeployment();
+factory.createMonitoring().startMonitoring();
+```
+
+---
+
+## 🛡️ Design Highlights
+
+- **Family consistency** — A single factory guarantees all 6 services belong to the same provider, no cross-provider mixing
+- **Open/Closed Principle** — Adding a new provider (e.g., Oracle Cloud) only requires a new factory + concrete classes, zero client changes
+- **Provider-agnostic client** — Client depends only on interfaces (`Authentication`, `Compute`, `Storage`, etc.), never on concrete classes
+- **Single point of selection** — `CloudServiceFactoryProvider` is the only place that knows about concrete factories
+- **Separation of concerns** — Product interfaces (`product/`), concrete implementations (`aws/`, `azure/`, `gcp/`), factories (`factory/`), and client (`Main`) are cleanly separated
